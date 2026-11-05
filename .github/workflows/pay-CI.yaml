@@ -1,0 +1,63 @@
+name: Pay CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Format, lint, test, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting with Prettier
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+  links:
+    name: Check documentation links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check Markdown and HTML links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --max-retries 2 --timeout 20 '**/*.md' '**/*.html'
+          fail: true
+          failIfEmpty: false
