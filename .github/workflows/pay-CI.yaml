@@ -47,6 +47,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Type-check extension
+        working-directory: extension
+        run: npm run compile
+
       - name: Run tests
         run: npm test -- --passWithNoTests
 
