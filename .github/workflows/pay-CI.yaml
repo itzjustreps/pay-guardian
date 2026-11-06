@@ -29,8 +29,16 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            extension/package-lock.json
 
       - name: Install dependencies
+        run: npm ci
+
+      - name: Install and prepare extension
+        working-directory: extension
+        # postinstall runs wxt prepare, generating .wxt/tsconfig.json for tests.
         run: npm ci
 
       - name: Check formatting with Prettier
@@ -38,6 +46,10 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Type-check extension
+        working-directory: extension
+        run: npm run compile
 
       - name: Run tests
         run: npm test -- --passWithNoTests

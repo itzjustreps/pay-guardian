@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm test && npm run format:check"
   },
   "dependencies": {
     "ai": "^7.0.163",
