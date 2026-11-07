@@ -12,5 +12,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    // Tests must not depend on a developer's ignored extension/.env.local file.
+    env: {
+      WXT_API_BASE_URL: 'http://localhost:3000',
+    },
   },
 });
