@@ -20,5 +20,13 @@ export async function POST(request: Request) {
     );
   }
 
+  // Inspect synthetic test notes in the backend terminal during development.
+  if (process.env.NODE_ENV === 'development') {
+    console.log(
+      '[Pay Guardian] Received seller note:',
+      validation.data.sellerNote,
+    );
+  }
+
   return Response.json({ status: 'received' });
 }
