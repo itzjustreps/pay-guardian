@@ -1,6 +1,7 @@
 import { watchSellerNote } from '../utils/seller-note';
 import { redactSellerNote } from '../utils/redact-note';
 import { validateAnalysisPayload } from '../utils/analysis-payload';
+import { noteReplySchema } from '../utils/note-message';
 
 export default defineContentScript({
   matches: ['https://www.sandbox.paypal.com/invoice/p/*'],
@@ -23,9 +24,29 @@ export default defineContentScript({
             console.warn('[Pay Guardian] Invalid analysis payload; stopped');
             break;
           }
-          console.log(
-            '[Pay Guardian] Redacted payload validated; not sent yet',
-          );
+          void browser.runtime
+            .sendMessage({
+              //sends message to the background.ts file
+              type: 'SEND_NOTE',
+              payload: validation.data,
+            })
+            .then((reply: unknown) => {
+              const response = noteReplySchema.safeParse(reply);
+              if (!response.success || !response.data.ok) {
+                console.warn(
+                  '[Pay Guardian] Could not deliver the seller note',
+                );
+                return;
+              }
+              console.log(
+                '[Pay Guardian] Backend acknowledged receipt; not analysed yet',
+              );
+            })
+            .catch(() => {
+              console.warn(
+                '[Pay Guardian] Could not contact the background script',
+              );
+            });
           break;
         }
         case 'empty':
@@ -43,6 +64,6 @@ export default defineContentScript({
           break;
       }
     });
-    ctx.onInvalidated(stop); //calls the stop function when there is no valid data.
+    ctx.onInvalidated(stop); // Clean up when WXT unloads or replaces this script.
   },
 });
