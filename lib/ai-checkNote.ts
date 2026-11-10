@@ -33,11 +33,11 @@ export async function checkNote(note: string): Promise<AiResponse> {
     providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } }, //low latency
     experimental_telemetry: { isEnabled: false },
   });
-  console.log('THIS IS AI OUTPUT:', result.output.findings);
   // Runtime validation also enforces the schema's cross-field refinement.
   const validation = aiResponseSchema.safeParse(result.output);
   if (!validation.success) throw new Error('Invalid AI response');
   const assessment = validation.data;
+  console.log('THIS IS AI OUTPUT:', result.output.findings);
 
   // The schema supports future categories; this prompt currently checks urgency only.
   if (
