@@ -33,13 +33,15 @@ export default defineContentScript({
             .then((reply: unknown) => {
               const response = noteReplySchema.safeParse(reply);
               if (!response.success || !response.data.ok) {
-                console.warn(
-                  '[Pay Guardian] Could not deliver the seller note',
-                );
+                console.warn('[Pay Guardian] Seller-note analysis unavailable');
                 return;
               }
               console.log(
-                '[Pay Guardian] Backend acknowledged receipt; not analysed yet',
+                '[Pay Guardian] Seller-note analysis complete (urgency only)',
+                {
+                  status: response.data.assessment.status,
+                  findingCount: response.data.assessment.findings.length,
+                },
               );
             })
             .catch(() => {

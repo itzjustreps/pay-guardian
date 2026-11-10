@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { aiResponseSchema } from '../../lib/ai-response';
 import { analysisPayloadSchema } from './analysis-payload';
 
 export const noteMessageSchema = z.strictObject({
@@ -6,8 +7,11 @@ export const noteMessageSchema = z.strictObject({
   payload: analysisPayloadSchema, //version and sellernote
 });
 
-// Successful delivery is an acknowledgement, not an AI risk assessment.
-export const noteReplySchema = z.strictObject({ ok: z.boolean() });
+export const noteReplySchema = z.discriminatedUnion('ok', [
+  z.strictObject({ ok: z.literal(true), assessment: aiResponseSchema }),
+  z.strictObject({ ok: z.literal(false) }),
+]);
+export type NoteReply = z.infer<typeof noteReplySchema>;
 
 export function isSandboxInvoice(url: string | undefined): boolean {
   if (!url) return false;

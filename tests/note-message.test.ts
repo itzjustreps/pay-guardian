@@ -25,7 +25,17 @@ describe('note messages', () => {
   });
 
   it('checks replies rather than trusting truthy values', () => {
-    expect(noteReplySchema.safeParse({ ok: true }).success).toBe(true);
+    expect(
+      noteReplySchema.safeParse({
+        ok: true,
+        assessment: {
+          status: 'analysed',
+          summary: 'No strong urgency signal detected.',
+          findings: [],
+        },
+      }).success,
+    ).toBe(true);
+    expect(noteReplySchema.safeParse({ ok: true }).success).toBe(false);
     expect(noteReplySchema.safeParse({ ok: false }).success).toBe(true);
     expect(noteReplySchema.safeParse({ ok: 'false' }).success).toBe(false);
   });

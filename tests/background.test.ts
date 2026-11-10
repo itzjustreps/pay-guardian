@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendNote } from '../extension/utils/send-note';
 import { handleNoteMessage } from '../extension/utils/handle-note-message';
+import type { NoteReply } from '../extension/utils/note-message';
 
 vi.mock('../extension/utils/send-note', () => ({ sendNote: vi.fn() }));
 
@@ -13,7 +14,7 @@ type Sender = {
 function listener(
   message: unknown,
   sender: Sender,
-  reply: (result: { ok: boolean }) => void,
+  reply: (result: NoteReply) => void,
 ) {
   return handleNoteMessage(message, sender, 'our-extension', reply);
 }
@@ -27,6 +28,11 @@ const sender: Sender = {
   tab: { id: 1 },
   frameId: 0,
 };
+const assessment = {
+  status: 'analysed' as const,
+  summary: 'No strong urgency signal detected.',
+  findings: [],
+};
 
 beforeEach(() => {
   vi.mocked(sendNote).mockReset();
@@ -34,12 +40,12 @@ beforeEach(() => {
 
 describe('background request handling', () => {
   it('sends only the payload and keeps the response channel open until completion', async () => {
-    vi.mocked(sendNote).mockResolvedValue();
+    vi.mocked(sendNote).mockResolvedValue(assessment);
     const reply = vi.fn();
     expect(listener(message, sender, reply)).toBe(true);
     await Promise.resolve();
     expect(sendNote).toHaveBeenCalledExactlyOnceWith(message.payload);
-    expect(reply).toHaveBeenCalledExactlyOnceWith({ ok: true });
+    expect(reply).toHaveBeenCalledExactlyOnceWith({ ok: true, assessment });
   });
 
   it.each([

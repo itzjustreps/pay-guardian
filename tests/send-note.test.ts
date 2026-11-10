@@ -6,6 +6,11 @@ const payload: AnalysisPayload = {
   version: 1,
   sellerNote: 'URGENT call [PHONE_1]',
 };
+const assessment = {
+  status: 'analysed',
+  summary: 'No strong urgency signal detected.',
+  findings: [],
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -13,13 +18,17 @@ afterEach(() => {
 });
 
 describe('sendNote', () => {
-  it('posts the complete validated payload to the fixed API and checks its acknowledgement', async () => {
+  it('posts the complete validated payload and returns the validated assessment', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(new Response(JSON.stringify({ status: 'received' })));
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ status: 'received', analysis: assessment }),
+        ),
+      );
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(sendNote(payload)).resolves.toBeUndefined();
+    await expect(sendNote(payload)).resolves.toEqual(assessment);
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
       'http://localhost:3000/api/send-notes',
       expect.objectContaining({
@@ -65,7 +74,21 @@ describe('sendNote', () => {
         .mockResolvedValue(new Response(JSON.stringify({ status: 'safe' }))),
     );
     await expect(sendNote(payload)).rejects.toThrow(
-      'Invalid acknowledgement from analysis API',
+      'Invalid analysis response from API',
+    );
+  });
+
+  it('rejects a receipt acknowledgement that contains no assessment', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ status: 'received' })),
+        ),
+    );
+    await expect(sendNote(payload)).rejects.toThrow(
+      'Invalid analysis response from API',
     );
   });
 
@@ -85,7 +108,7 @@ describe('sendNote', () => {
     await expect(sendNote(payload)).rejects.toThrow();
   });
 
-  it('sets a ten-second timeout and propagates cancellation', async () => {
+  it('sets a 28-second timeout and propagates cancellation', async () => {
     const controller = new AbortController();
     const timeout = vi
       .spyOn(AbortSignal, 'timeout')
@@ -108,6 +131,6 @@ describe('sendNote', () => {
     const assertion = expect(request).rejects.toThrow('Timed out');
     controller.abort();
     await assertion;
-    expect(timeout).toHaveBeenCalledWith(10_000);
+    expect(timeout).toHaveBeenCalledWith(28_000);
   });
 });
