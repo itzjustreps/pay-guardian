@@ -1,6 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { POST } from '../../app/api/send-notes/route';
 import { MAX_SELLER_NOTE_LENGTH } from '../../extension/utils/analysis-payload';
+
+const assessment = {
+  status: 'analysed',
+  summary: 'No strong urgency signal detected.',
+  findings: [],
+};
+const fetchMock = vi.fn();
+
+beforeEach(() => {
+  fetchMock.mockReset();
+  fetchMock.mockResolvedValue(new Response(JSON.stringify(assessment)));
+  vi.stubGlobal('fetch', fetchMock);
+  vi.stubEnv('APP_BASE_URL', 'http://localhost:3001');
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 function postPayload(payload: unknown) {
   return POST(
@@ -17,7 +35,7 @@ describe('POST /api/send-notes', () => {
     'Thank you for your order.',
     'PayPal Support: URGENT call [PHONE_1] to cancel this charge!',
   ])(
-    'acknowledges receipt without judging or echoing the note %#',
+    'forwards the validated note and returns the AI assessment %#',
     async (sellerNote) => {
       const response = await postPayload({ version: 1, sellerNote });
 
@@ -25,7 +43,23 @@ describe('POST /api/send-notes', () => {
       expect(response.headers.get('content-type')).toContain(
         'application/json',
       );
-      expect(await response.json()).toEqual({ status: 'received' });
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(await response.json()).toEqual({
+        status: 'received',
+        analysis: assessment,
+      });
+      expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+        'http://localhost:3001/api/ai-query',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version: 1, sellerNote }),
+          signal: expect.any(AbortSignal),
+          credentials: 'omit',
+          redirect: 'error',
+          cache: 'no-store',
+        }),
+      );
     },
   );
 
@@ -42,6 +76,7 @@ describe('POST /api/send-notes', () => {
 
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({ error: 'Invalid JSON' });
+      expect(fetchMock).not.toHaveBeenCalled();
     },
   );
 
@@ -68,6 +103,7 @@ describe('POST /api/send-notes', () => {
       expect(await response.json()).toEqual({
         error: 'Invalid analysis payload',
       });
+      expect(fetchMock).not.toHaveBeenCalled();
     },
   );
 
@@ -78,7 +114,10 @@ describe('POST /api/send-notes', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: 'received' });
+    expect(await response.json()).toEqual({
+      status: 'received',
+      analysis: assessment,
+    });
   });
 
   it('rejects an oversized note instead of truncating and acknowledging it', async () => {
@@ -91,5 +130,64 @@ describe('POST /api/send-notes', () => {
     expect(await response.json()).toEqual({
       error: 'Invalid analysis payload',
     });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('uses the configured destination rather than a caller-controlled request host', async () => {
+    const response = await POST(
+      new Request('https://attacker.example/api/send-notes', {
+        method: 'POST',
+        body: JSON.stringify({ version: 1, sellerNote: '  Note  ' }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3001/api/ai-query',
+      expect.objectContaining({
+        body: JSON.stringify({ version: 1, sellerNote: 'Note' }),
+      }),
+    );
+  });
+
+  it('requires an explicit backend origin in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('APP_BASE_URL', '');
+    const response = await postPayload({ version: 1, sellerNote: 'Note' });
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([429, 500, 503])(
+    'handles upstream HTTP %s without reporting success or echoing errors',
+    async (status) => {
+      fetchMock.mockResolvedValue(
+        new Response('Private provider details', { status }),
+      );
+      const response = await postPayload({ version: 1, sellerNote: 'Note' });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: 'AI analysis unavailable',
+      });
+    },
+  );
+
+  it.each([
+    new Response('<html>Not JSON</html>'),
+    new Response(JSON.stringify({ status: 'received' })),
+    new Response(JSON.stringify({ ...assessment, status: 'safe' })),
+  ])('rejects a malformed upstream response %#', async (upstream) => {
+    fetchMock.mockResolvedValue(upstream);
+    const response = await postPayload({ version: 1, sellerNote: 'Note' });
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: 'Invalid AI analysis response',
+    });
+  });
+
+  it('handles network errors and timeouts as unavailable analysis', async () => {
+    fetchMock.mockRejectedValue(new Error('Network unavailable'));
+    const response = await postPayload({ version: 1, sellerNote: 'Note' });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'AI analysis unavailable' });
   });
 });

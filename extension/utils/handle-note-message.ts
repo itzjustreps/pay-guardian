@@ -1,4 +1,8 @@
-import { isSandboxInvoice, noteMessageSchema } from './note-message';
+import {
+  isSandboxInvoice,
+  noteMessageSchema,
+  type NoteReply,
+} from './note-message';
 import { sendNote } from './send-note';
 
 type NoteSender = {
@@ -13,7 +17,7 @@ export function handleNoteMessage(
   message: unknown,
   sender: NoteSender,
   extensionId: string,
-  sendResponse: (reply: { ok: boolean }) => void,
+  sendResponse: (reply: NoteReply) => void,
 ): true | undefined {
   const validation = noteMessageSchema.safeParse(message);
   if (!validation.success) return;
@@ -29,7 +33,7 @@ export function handleNoteMessage(
   }
 
   void sendNote(validation.data.payload).then(
-    () => sendResponse({ ok: true }),
+    (assessment) => sendResponse({ ok: true, assessment }),
     () => sendResponse({ ok: false }),
   );
   // Keep Chrome's message channel open until the asynchronous request finishes.

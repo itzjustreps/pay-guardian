@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { aiResponseSchema, type AiResponse } from '../../lib/ai-response';
 import {
   type AnalysisPayload,
   validateAnalysisPayload,
@@ -11,9 +12,12 @@ if (!baseUrl) {
 }
 const NOTE_ENDPOINT = new URL('/api/send-notes', baseUrl).href;
 
-const acknowledgementSchema = z.strictObject({ status: z.literal('received') });
+const noteResponseSchema = z.strictObject({
+  status: z.literal('received'),
+  analysis: aiResponseSchema,
+});
 // Call from the background script, after local redaction.
-export async function sendNote(payload: AnalysisPayload): Promise<void> {
+export async function sendNote(payload: AnalysisPayload): Promise<AiResponse> {
   const validation = validateAnalysisPayload(payload);
   if (!validation.success) {
     throw new Error('Invalid analysis payload');
@@ -23,7 +27,7 @@ export async function sendNote(payload: AnalysisPayload): Promise<void> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(validation.data),
-    signal: AbortSignal.timeout(10_000),
+    signal: AbortSignal.timeout(28_000),
     credentials: 'omit',
     redirect: 'error',
   });
@@ -34,8 +38,9 @@ export async function sendNote(payload: AnalysisPayload): Promise<void> {
   }
 
   const body: unknown = await res.json();
-  if (!acknowledgementSchema.safeParse(body).success) {
-    //safe parse returns an object sucess:true/false depending on if the body mets the acknowledgement schema
-    throw new Error('Invalid acknowledgement from analysis API'); //throw error mean
+  const response = noteResponseSchema.safeParse(body);
+  if (!response.success) {
+    throw new Error('Invalid analysis response from API');
   }
+  return response.data.analysis;
 }
