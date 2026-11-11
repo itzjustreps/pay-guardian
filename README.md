@@ -2,6 +2,10 @@
 
 Paypal Hackathon
 
+## Problem
+
+with the recent rise in paypal invoice scam
+
 ## Tests
 
 Run `npm test` to execute the Vitest and React Testing Library suite once, or
