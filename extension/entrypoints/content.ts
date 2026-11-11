@@ -2,7 +2,7 @@ import { browser } from 'wxt/browser';
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { watchSellerNote } from '../utils/seller-note';
-import { redactSellerNote } from '../utils/redact-note';
+import { redactSellerNoteWithContacts } from '../utils/redact-note';
 import { validateAnalysisPayload } from '../utils/analysis-payload';
 import { noteReplySchema } from '../utils/note-message';
 import {
@@ -14,7 +14,8 @@ export default defineContentScript({
   matches: ['https://www.sandbox.paypal.com/invoice/p/*'],
   async main(ctx) {
     console.log('[Pay Guardian] Invoice page detected');
-    let redactedNotes = '';
+    // Keep contact flags locally; only redacted text is sent to the backend.
+    let preparedNote = redactSellerNoteWithContacts('');
     let isChecking = false;
     const button = document.createElement('button');
     button.type = 'button';
@@ -24,10 +25,10 @@ export default defineContentScript({
     panel.showMessage('Looking for the seller note…');
 
     async function startAssessment() {
-      if (isChecking || !redactedNotes || ctx.isInvalid) return;
+      if (isChecking || !preparedNote.text || ctx.isInvalid) return;
       const payload = {
         version: 1,
-        sellerNote: redactedNotes,
+        sellerNote: preparedNote.text,
       };
       const validation = validateAnalysisPayload(payload);
 
@@ -58,7 +59,7 @@ export default defineContentScript({
           return;
         }
 
-        panel.showAssessment(response.data.assessment);
+        panel.showAssessment(response.data.assessment, preparedNote);
         console.log(
           '[Pay Guardian] Seller-note analysis complete (urgency only)',
           {
@@ -101,13 +102,13 @@ export default defineContentScript({
       // Log status only: seller notes can contain personal information.
       switch (result.status) {
         case 'ready': {
-          redactedNotes = redactSellerNote(result.text);
+          preparedNote = redactSellerNoteWithContacts(result.text);
           panel.showMessage(
-            redactedNotes.trim()
+            preparedNote.text.trim()
               ? 'Ready to check this seller note.'
               : 'There is no seller note text to check.',
           );
-          button.disabled = redactedNotes.trim().length === 0;
+          button.disabled = preparedNote.text.trim().length === 0;
           button.textContent = button.disabled
             ? 'Unavailable'
             : 'Check invoice';

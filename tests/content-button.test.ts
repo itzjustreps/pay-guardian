@@ -199,3 +199,95 @@ it('dismisses the panel without starting a check', async () => {
   expect(document.querySelector('.panel')).toBeNull();
   expect(sendMessage).not.toHaveBeenCalled();
 });
+
+it.each([
+  'Call 07700900123 with questions.',
+  'Email help@example.com with questions.',
+  'Call 07700900123 or email help@example.com.',
+])('shows neutral advice after no findings for %s', async (note) => {
+  const button = await mount();
+  ready(note);
+  expect(document.querySelector('.contact-guidance')).toBeNull();
+  sendMessage.mockResolvedValue({
+    ok: true,
+    assessment: {
+      status: 'analysed',
+      summary: 'No urgency detected.',
+      findings: [],
+    },
+  });
+  button.click();
+  await vi.waitFor(() =>
+    expect(document.body).toHaveTextContent('Before contacting the sender'),
+  );
+  expect(document.querySelector('.panel')).not.toHaveClass('has-warnings');
+  expect(document.body).toHaveTextContent('Never share passwords');
+  expect(document.querySelectorAll('.contact-guidance li')).toHaveLength(4);
+  const payload = sendMessage.mock.calls[0]![0].payload;
+  expect(Object.keys(payload).sort()).toEqual(['sellerNote', 'version']);
+  expect(payload.sellerNote).not.toContain('07700900123');
+  expect(payload.sellerNote).not.toContain('help@example.com');
+});
+
+it.each(['warning', 'insufficient_context', 'no_contacts', 'failure'] as const)(
+  'does not show contact advice for %s',
+  async (scenario) => {
+    const button = await mount();
+    ready(
+      scenario === 'no_contacts'
+        ? 'Payment due in 14 days.'
+        : 'Call 07700900123 now or your account closes.',
+    );
+    sendMessage.mockResolvedValue(
+      scenario === 'failure'
+        ? { ok: false }
+        : {
+            ok: true,
+            assessment: {
+              status:
+                scenario === 'insufficient_context'
+                  ? 'insufficient_context'
+                  : 'analysed',
+              summary: 'Assessment summary.',
+              findings:
+                scenario === 'warning'
+                  ? [
+                      {
+                        category: 'urgency',
+                        evidence: 'Call [PHONE_1] now or your account closes.',
+                        explanation: 'Threatens account closure.',
+                      },
+                    ]
+                  : [],
+            },
+          },
+    );
+    button.click();
+    await vi.waitFor(() => expect(button).toBeEnabled());
+    expect(document.querySelector('.contact-guidance')).toBeNull();
+    if (scenario === 'warning')
+      expect(document.querySelector('.panel')).toHaveClass('has-warnings');
+  },
+);
+
+it('clears contact advice on a retry, including a failed retry', async () => {
+  const button = await mount();
+  ready('Email help@example.com.');
+  sendMessage.mockResolvedValueOnce({
+    ok: true,
+    assessment: {
+      status: 'analysed',
+      summary: 'No urgency detected.',
+      findings: [],
+    },
+  });
+  button.click();
+  await vi.waitFor(() =>
+    expect(document.body).toHaveTextContent('Before contacting the sender'),
+  );
+  sendMessage.mockResolvedValueOnce({ ok: false });
+  button.click();
+  expect(document.querySelector('.contact-guidance')).toBeNull();
+  await vi.waitFor(() => expect(button).toBeEnabled());
+  expect(document.querySelector('.contact-guidance')).toBeNull();
+});

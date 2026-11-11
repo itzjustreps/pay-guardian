@@ -1,4 +1,5 @@
 import type { AiResponse } from '../../lib/ai-response';
+import type { RedactedSellerNote } from './redact-note';
 
 export const assessmentPanelCss = `
   .panel {
@@ -23,6 +24,16 @@ export const assessmentPanelCss = `
   h2 { margin: 0 40px 8px 0; font-size: 18px; }
   h3 { margin: 16px 0 8px; font-size: 15px; }
   p { margin: 8px 0; }
+  .contact-guidance {
+    margin-top: 16px;
+    padding: 12px;
+    border-left: 3px solid #0070e0;
+    border-radius: 6px;
+    background: #eff6ff;
+  }
+  .contact-guidance h3 { margin-top: 0; }
+  .contact-guidance ul { margin: 8px 0 0; padding-left: 20px; }
+  .contact-guidance li + li { margin-top: 8px; }
   .panel.has-warnings { border-color: #b91c1c; }
   .has-warnings .result-heading {
     padding: 10px 12px;
@@ -96,7 +107,7 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
   const heading = textElement('h2', 'Pay Guardian');
   const scope = textElement(
     'p',
-    'Checks urgency and coercive threats in the seller note only.',
+    'Detects suspicious messages and social engineering tactics hidden in PayPal invoices',
   );
   scope.className = 'scope';
   const results = document.createElement('div');
@@ -116,7 +127,10 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
       panel.classList.remove('has-warnings');
       results.replaceChildren(textElement('p', message));
     },
-    showAssessment(assessment: AiResponse) {
+    showAssessment(
+      assessment: AiResponse,
+      contacts: Pick<RedactedSellerNote, 'hasPhoneNumber' | 'hasEmailAddress'>,
+    ) {
       panel.classList.toggle(
         'has-warnings',
         assessment.status === 'analysed' && assessment.findings.length > 0,
@@ -143,6 +157,32 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
           textElement('p', finding.explanation),
         );
         results.append(item);
+      }
+      if (
+        assessment.status === 'analysed' &&
+        assessment.findings.length === 0 &&
+        (contacts.hasPhoneNumber || contacts.hasEmailAddress)
+      ) {
+        const guidance = document.createElement('section');
+        guidance.className = 'contact-guidance';
+        guidance.append(
+          textElement('h3', 'Before contacting the sender'),
+          textElement(
+            'p',
+            'Contact details were detected, but their owner has not been verified. No urgency detected does not mean the contact is trustworthy.',
+          ),
+        );
+        const advice = document.createElement('ul');
+        for (const tip of [
+          'Verify the phone number or email independently through the organisation’s official website or app.',
+          'Never share passwords, one-time security codes, or recovery codes by phone or email.',
+          'Do not install remote-access software or give someone control of your device.',
+          'Do not send money or move funds because someone pressures you during a call or email exchange.',
+        ]) {
+          advice.append(textElement('li', tip));
+        }
+        guidance.append(advice);
+        results.append(guidance);
       }
     },
   };
