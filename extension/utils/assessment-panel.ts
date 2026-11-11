@@ -1,0 +1,129 @@
+import type { AiResponse } from '../../lib/ai-response';
+
+export const assessmentPanelCss = `
+  .panel {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 2147483647;
+    box-sizing: border-box;
+    width: min(360px, calc(100vw - 48px));
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    padding: 20px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: white;
+    color: #172b4d;
+    font: 14px/1.5 system-ui, sans-serif;
+    overflow-wrap: anywhere;
+    box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+  }
+  h2 { margin: 0 40px 8px 0; font-size: 18px; }
+  h3 { margin: 16px 0 8px; font-size: 15px; }
+  p { margin: 8px 0; }
+  .scope, .caution { color: #475569; font-size: 12px; }
+  blockquote {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border-left: 3px solid #0070e0;
+    background: #f1f5f9;
+    white-space: pre-wrap;
+  }
+  button {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 8px;
+    background: #003087;
+    color: white;
+    font: 600 14px/1.5 system-ui, sans-serif;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #001c64; }
+  button:disabled { opacity: 0.65; cursor: not-allowed; }
+  button:focus-visible { outline: 3px solid #0070e0; outline-offset: 3px; }
+  .close-button {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: #172b4d;
+    font-size: 24px;
+    line-height: 1;
+  }
+  .close-button:hover:not(:disabled) { background: #e2e8f0; }
+`;
+
+// All model and invoice content is rendered as text, never HTML.
+function textElement<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  text: string,
+) {
+  const element = document.createElement(tag);
+  element.textContent = text;
+  return element;
+}
+
+export function createAssessmentPanel(button: HTMLButtonElement) {
+  const panel = document.createElement('section');
+  panel.className = 'panel';
+  panel.setAttribute('aria-label', 'Pay Guardian invoice check');
+  const closeButton = textElement('button', '×');
+  closeButton.type = 'button';
+  closeButton.className = 'close-button';
+  closeButton.setAttribute('aria-label', 'Close assessment panel');
+  closeButton.title = 'Close assessment panel';
+  closeButton.addEventListener('click', () => panel.remove());
+  const heading = textElement('h2', 'Pay Guardian');
+  const scope = textElement(
+    'p',
+    'Checks urgency and coercive threats in the seller note only.',
+  );
+  scope.className = 'scope';
+  const results = document.createElement('div');
+  results.setAttribute('role', 'status');
+  results.setAttribute('aria-live', 'polite');
+  results.setAttribute('aria-atomic', 'true');
+  const caution = textElement(
+    'p',
+    'This check does not prove fraud or confirm that an invoice is safe.',
+  );
+  caution.className = 'caution';
+  panel.append(closeButton, heading, scope, results, caution, button);
+
+  return {
+    element: panel,
+    showMessage(message: string) {
+      results.replaceChildren(textElement('p', message));
+    },
+    showAssessment(assessment: AiResponse) {
+      const title =
+        assessment.status === 'insufficient_context'
+          ? 'Not enough context'
+          : assessment.findings.length > 0
+            ? 'Warning signs found'
+            : 'No urgency warning signs found';
+      results.replaceChildren(
+        textElement('h3', title),
+        textElement('p', assessment.summary),
+      );
+      for (const finding of assessment.findings) {
+        const item = document.createElement('article');
+        item.append(
+          textElement('h3', finding.category.replaceAll('_', ' ')),
+          textElement('strong', 'Evidence from the redacted note'),
+          textElement('blockquote', finding.evidence),
+          textElement('strong', 'Why it was flagged'),
+          textElement('p', finding.explanation),
+        );
+        results.append(item);
+      }
+    },
+  };
+}

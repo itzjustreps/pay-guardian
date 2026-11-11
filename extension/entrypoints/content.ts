@@ -2,6 +2,10 @@ import { watchSellerNote } from '../utils/seller-note';
 import { redactSellerNote } from '../utils/redact-note';
 import { validateAnalysisPayload } from '../utils/analysis-payload';
 import { noteReplySchema } from '../utils/note-message';
+import {
+  createAssessmentPanel,
+  assessmentPanelCss,
+} from '../utils/assessment-panel';
 
 export default defineContentScript({
   matches: ['https://www.sandbox.paypal.com/invoice/p/*'],
@@ -13,6 +17,8 @@ export default defineContentScript({
     button.type = 'button';
     button.textContent = 'Loading…';
     button.disabled = true;
+    const panel = createAssessmentPanel(button);
+    panel.showMessage('Looking for the seller note…');
 
     async function startAssessment() {
       if (isChecking || !redactedNotes || ctx.isInvalid) return;
@@ -24,9 +30,13 @@ export default defineContentScript({
 
       if (!validation.success) {
         // Validation errors may contain input details: log a fixed message.
+        panel.showMessage(
+          'The seller note could not be checked because it is empty or too long.',
+        );
         console.warn('[Pay Guardian] Invalid analysis payload; stopped');
         return;
       }
+      panel.showMessage('Checking the seller note…');
       isChecking = true;
       button.disabled = true;
       button.textContent = 'Checking…';
@@ -37,11 +47,15 @@ export default defineContentScript({
           type: 'SEND_NOTE',
           payload: validation.data,
         });
+        if (ctx.isInvalid) return;
         const response = noteReplySchema.safeParse(reply);
         if (!response.success || !response.data.ok) {
+          panel.showMessage('The check is unavailable. Please try again.');
           console.warn('[Pay Guardian] Seller-note analysis unavailable');
           return;
         }
+
+        panel.showAssessment(response.data.assessment);
         console.log(
           '[Pay Guardian] Seller-note analysis complete (urgency only)',
           {
@@ -50,6 +64,8 @@ export default defineContentScript({
           },
         );
       } catch {
+        if (!ctx.isInvalid)
+          panel.showMessage('Could not complete the check. Please try again.');
         console.warn('[Pay Guardian] Could not contact the background script');
       } finally {
         isChecking = false;
@@ -67,37 +83,9 @@ export default defineContentScript({
       name: 'pay-guardian-button',
       position: 'inline',
       anchor: 'body',
-      css: `
-        button {
-          position: fixed;
-          right: 24px;
-          top: 24px;
-          z-index: 2147483647;
-          box-sizing: border-box;
-          width: 88px;
-          height: 88px;
-          display: grid;
-          place-items: center;
-          padding: 8px;
-          border: 0;
-          border-radius: 50%;
-          background: #003087;
-          color: white;
-          font: 600 12px/1.4 system-ui, sans-serif;
-          text-align: center;
-          overflow-wrap: anywhere;
-          box-shadow: 0 4px 16px rgb(0 0 0 / 20%);
-          cursor: pointer;
-        }
-        button:hover:not(:disabled) { background: #001c64; }
-        button:disabled { opacity: 0.65; cursor: not-allowed; }
-        button:focus-visible {
-          outline: 3px solid #0070e0;
-          outline-offset: 4px;
-        }
-      `,
+      css: assessmentPanelCss,
       onMount(container) {
-        container.append(button);
+        container.append(panel.element);
       },
     });
     // WXT automatically removes this UI when the context is invalidated.
@@ -111,6 +99,11 @@ export default defineContentScript({
       switch (result.status) {
         case 'ready': {
           redactedNotes = redactSellerNote(result.text);
+          panel.showMessage(
+            redactedNotes.trim()
+              ? 'Ready to check this seller note.'
+              : 'There is no seller note text to check.',
+          );
           button.disabled = redactedNotes.trim().length === 0;
           button.textContent = button.disabled
             ? 'Unavailable'
@@ -118,14 +111,21 @@ export default defineContentScript({
           break;
         }
         case 'empty':
+          panel.showMessage('There is no seller note text to check.');
           console.log('[Pay Guardian] Seller note is empty');
           break;
         case 'missing':
+          panel.showMessage(
+            'Could not find a seller note. Refresh the invoice page to try again.',
+          );
           console.warn(
             '[Pay Guardian] Seller note not found within 10 seconds',
           );
           break;
         case 'ambiguous':
+          panel.showMessage(
+            'Multiple seller notes were found, so the check could not start.',
+          );
           console.warn(
             '[Pay Guardian] Multiple seller notes found; extraction stopped',
           );
