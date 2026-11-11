@@ -2,33 +2,31 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { watchSellerNote } from '../extension/utils/seller-note';
 
 vi.mock('../extension/utils/seller-note', () => ({ watchSellerNote: vi.fn() }));
-const sendMessage = vi.fn();
+const { sendMessage } = vi.hoisted(() => ({ sendMessage: vi.fn() }));
+vi.mock('wxt/browser', () => ({ browser: { runtime: { sendMessage } } }));
+vi.mock('wxt/utils/define-content-script', () => ({
+  defineContentScript: (options: unknown) => options,
+}));
+vi.mock('wxt/utils/content-script-ui/shadow-root', () => ({
+  createShadowRootUi: async (
+    _ctx: unknown,
+    options: { onMount: (container: HTMLElement) => void },
+  ) => ({ mount: () => options.onMount(document.body) }),
+}));
 
 beforeEach(() => {
   vi.resetModules();
   sendMessage.mockReset();
-  vi.stubGlobal('browser', { runtime: { sendMessage } });
-  vi.stubGlobal('defineContentScript', (options: unknown) => options);
-  vi.stubGlobal(
-    'createShadowRootUi',
-    async (
-      _ctx: unknown,
-      options: {
-        onMount: (container: HTMLElement) => void;
-      },
-    ) => ({ mount: () => options.onMount(document.body) }),
-  );
   vi.mocked(watchSellerNote).mockReset().mockReturnValue(vi.fn());
 });
 afterEach(() => {
   document.body.replaceChildren();
-  vi.unstubAllGlobals();
 });
 
 async function mount() {
   const { default: script } = await import('../extension/entrypoints/content');
   const ctx = { isInvalid: false, onInvalidated: vi.fn() };
-  // WXT supplies these globals and context in the browser.
+  // WXT supplies the full context in the browser.
   await (script as unknown as { main: (ctx: unknown) => Promise<void> }).main(
     ctx,
   );

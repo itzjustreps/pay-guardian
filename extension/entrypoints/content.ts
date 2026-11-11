@@ -1,3 +1,6 @@
+import { browser } from 'wxt/browser';
+import { defineContentScript } from 'wxt/utils/define-content-script';
+import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { watchSellerNote } from '../utils/seller-note';
 import { redactSellerNote } from '../utils/redact-note';
 import { validateAnalysisPayload } from '../utils/analysis-payload';
