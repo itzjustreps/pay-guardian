@@ -1,7 +1,41 @@
 import { describe, expect, it } from 'vitest';
-import { redactSellerNote } from '../extension/utils/redact-note';
+import {
+  redactSellerNote,
+  redactSellerNoteWithContacts,
+} from '../extension/utils/redact-note';
 
 describe('seller note redaction', () => {
+  it.each([
+    ['Call +44 7700 900123.', true, false],
+    ['Email help@example.com.', false, true],
+    [
+      'Call 07700900123 or email help@example.com now or your account closes.',
+      true,
+      true,
+    ],
+    ['Email 07700900123@example.com.', false, true],
+    ['Pay $1,200.00 within 24 hours.', false, false],
+    ['', false, false],
+    ['Call [PHONE_1] or email [EMAIL_1].', false, false],
+  ])(
+    'retains contact flags for %s',
+    (note, hasPhoneNumber, hasEmailAddress) => {
+      expect(redactSellerNoteWithContacts(note)).toEqual({
+        text: redactSellerNote(note),
+        hasPhoneNumber,
+        hasEmailAddress,
+      });
+    },
+  );
+
+  it('does not carry contact flags into the next note', () => {
+    redactSellerNoteWithContacts('Call 07700900123 or email help@example.com.');
+    expect(redactSellerNoteWithContacts('Payment due in 14 days.')).toEqual({
+      text: 'Payment due in 14 days.',
+      hasPhoneNumber: false,
+      hasEmailAddress: false,
+    });
+  });
   it('preserves brand claims and pressure while replacing contact details', () => {
     expect(
       redactSellerNote(

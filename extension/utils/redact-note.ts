@@ -8,6 +8,17 @@ const PHONE =
   /(?<![\p{L}\p{N}_])\+?\(?\d(?:[\d() \t.-]*\d)?(?![\p{L}\p{N}_])/gu;
 
 export function redactSellerNote(note: string): string {
+  return redactSellerNoteWithContacts(note).text;
+}
+
+export type RedactedSellerNote = {
+  text: string;
+  hasPhoneNumber: boolean;
+  hasEmailAddress: boolean;
+};
+
+// Flags describe the same heuristic matches used for redaction, not verified contacts.
+export function redactSellerNoteWithContacts(note: string): RedactedSellerNote {
   const emails = new Map<string, string>();
   const phones = new Map<string, string>();
 
@@ -29,11 +40,16 @@ export function redactSellerNote(note: string): string {
     placeholder(emails, email, 'EMAIL'),
   );
 
-  return withoutEmails.replace(PHONE, (phone) => {
+  const text = withoutEmails.replace(PHONE, (phone) => {
     const digits = phone.replace(/\D/g, '');
     // Preserve short amounts and deadlines. Long non-phone numbers can still
     // match, and disguised contacts can be missed: this is partial redaction.
     if (digits.length < 7 || digits.length > 15) return phone;
     return placeholder(phones, digits, 'PHONE');
   });
+  return {
+    text,
+    hasPhoneNumber: phones.size > 0,
+    hasEmailAddress: emails.size > 0,
+  };
 }
