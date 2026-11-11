@@ -8,8 +8,9 @@ export const assessmentPanelCss = `
     z-index: 2147483647;
     box-sizing: border-box;
     width: min(360px, calc(100vw - 48px));
-    max-height: calc(100dvh - 48px);
+    max-height: min(450px, calc(100dvh - 48px));
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 20px;
     border: 1px solid #cbd5e1;
     border-radius: 12px;
@@ -22,6 +23,18 @@ export const assessmentPanelCss = `
   h2 { margin: 0 40px 8px 0; font-size: 18px; }
   h3 { margin: 16px 0 8px; font-size: 15px; }
   p { margin: 8px 0; }
+  .panel.has-warnings { border-color: #b91c1c; }
+  .has-warnings .result-heading {
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: #fef2f2;
+    color: #991b1b;
+  }
+  .has-warnings article h3 { color: #991b1b; }
+  .has-warnings blockquote {
+    border-left-color: #b91c1c;
+    background: #fef2f2;
+  }
   .scope, .caution { color: #475569; font-size: 12px; }
   blockquote {
     margin: 8px 0;
@@ -100,17 +113,24 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
   return {
     element: panel,
     showMessage(message: string) {
+      panel.classList.remove('has-warnings');
       results.replaceChildren(textElement('p', message));
     },
     showAssessment(assessment: AiResponse) {
+      panel.classList.toggle(
+        'has-warnings',
+        assessment.status === 'analysed' && assessment.findings.length > 0,
+      );
       const title =
         assessment.status === 'insufficient_context'
           ? 'Not enough context'
           : assessment.findings.length > 0
             ? 'Warning signs found'
             : 'No urgency warning signs found';
+      const resultHeading = textElement('h3', title);
+      resultHeading.className = 'result-heading';
       results.replaceChildren(
-        textElement('h3', title),
+        resultHeading,
         textElement('p', assessment.summary),
       );
       for (const finding of assessment.findings) {
