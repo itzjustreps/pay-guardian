@@ -2,6 +2,8 @@
 
 **An AI-powered Chrome extension that helps people recognise social-engineering warning signs in PayPal invoice notes.**
 
+**[Download Pay Guardian for Chrome — ZIP](downloads/pay-guardian-production.zip?raw=true)** · Includes installation instructions and five test invoice links.
+
 ## Why I built Pay Guardian
 
 I built Pay Guardian for everyday users who may not have the awareness or education to recognise an invoice scam. A convincing invoice can persuade someone to call a number, disclose sensitive information, or take an action that costs them money before they realise what is happening.
@@ -21,7 +23,15 @@ Built for the PayPal hackathon, the current prototype works on **PayPal sandbox 
 3. Read the assessment, including the quoted evidence and an explanation for each finding. Warning findings receive red styling.
 4. If neither check finds a warning and the note contains detected contact details, a blue **Before contacting the sender** section gives practical safety advice. Missing notes, insufficient context, and failed requests are shown separately.
 
-**For judges and testers:** download the attached `pay-guardian-production.zip`, unzip it, open `chrome://extensions`, enable **Developer mode**, and click **Load unpacked**. Select the extracted `pay-guardian` folder containing `manifest.json`. Open `TEST-INVOICES.html` inside that folder for five labelled sandbox invoice links and expected results, then click **Check invoice** on each invoice page. `START-HERE.txt` contains the same setup steps and troubleshooting. No local server or API key is needed. Use the panel on the invoice page; the toolbar popup is still a starter screen.
+### Try it in Chrome
+
+1. **[Download the extension ZIP](downloads/pay-guardian-production.zip?raw=true)** and unzip it. If GitHub opens a file page, click **Download raw file**.
+2. Open `chrome://extensions` and enable **Developer mode**.
+3. Click **Load unpacked** and select the extracted `pay-guardian` folder containing `manifest.json`.
+4. Open `TEST-INVOICES.html` inside that folder in Chrome and choose a test invoice.
+5. Click **Check invoice** in the panel on the invoice page.
+
+No local server, API key, or coding setup is needed. `START-HERE.txt` in the ZIP includes troubleshooting. Use the panel on the invoice page; the toolbar popup is still a starter screen.
 
 The extension currently matches `https://www.sandbox.paypal.com/invoice/p/*`. Opening the backend website alone does not install or demonstrate the extension. Refresh an invoice tab after installing or reloading it. To reopen a dismissed panel, refresh the page.
 
