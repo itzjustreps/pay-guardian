@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run lint && npm test && npm run format:check"
+    "check": "npm run lint && npm test && npm run format:check",
+    "sandbox:invoices": "node --env-file-if-exists=.env.paypal-sandbox scripts/paypal-sandbox.mts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.113",

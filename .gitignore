@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local sandbox invoice state and test links
+/artifacts/paypal-sandbox/
+!/.env.paypal-sandbox.example
