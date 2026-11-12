@@ -61,7 +61,7 @@ export default defineContentScript({
 
         panel.showAssessment(response.data.assessment, preparedNote);
         console.log(
-          '[Pay Guardian] Seller-note analysis complete (urgency only)',
+          '[Pay Guardian] Seller-note analysis complete (urgency and sensitive information)',
           {
             status: response.data.assessment.status,
             findingCount: response.data.assessment.findings.length,

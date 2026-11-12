@@ -157,7 +157,7 @@ it.each(['analysed', 'insufficient_context'] as const)(
     await vi.waitFor(() =>
       expect(document.body).toHaveTextContent(
         status === 'analysed'
-          ? 'No urgency warning signs found'
+          ? 'No warning signs found in these checks'
           : 'Not enough context',
       ),
     );
@@ -291,3 +291,47 @@ it('clears contact advice on a retry, including a failed retry', async () => {
   await vi.waitFor(() => expect(button).toBeEnabled());
   expect(document.querySelector('.contact-guidance')).toBeNull();
 });
+
+it.each([false, true])(
+  'shows sensitive-information warnings with urgency=%s and suppresses neutral advice',
+  async (withUrgency) => {
+    const button = await mount();
+    ready(
+      'Email your login code to help@example.com now or your account closes.',
+    );
+    sendMessage.mockResolvedValue({
+      ok: true,
+      assessment: {
+        status: 'analysed',
+        summary: 'The note requests a login code.',
+        findings: [
+          {
+            category: 'sensitive_information_request',
+            evidence: 'Email your login code to [EMAIL_1]',
+            explanation: 'Requests disclosure of a login secret.',
+          },
+          ...(withUrgency
+            ? [
+                {
+                  category: 'urgency',
+                  evidence: 'now or your account closes.',
+                  explanation: 'Pressures immediate disclosure.',
+                },
+              ]
+            : []),
+        ],
+      },
+    });
+    button.click();
+    await vi.waitFor(() =>
+      expect(document.body).toHaveTextContent(
+        'Sensitive information requested',
+      ),
+    );
+    expect(document.querySelector('.panel')).toHaveClass('has-warnings');
+    expect(document.querySelectorAll('blockquote')).toHaveLength(
+      withUrgency ? 2 : 1,
+    );
+    expect(document.querySelector('.contact-guidance')).toBeNull();
+  },
+);
