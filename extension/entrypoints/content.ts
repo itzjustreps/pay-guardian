@@ -105,7 +105,7 @@ export default defineContentScript({
           preparedNote = redactSellerNoteWithContacts(result.text);
           panel.showMessage(
             preparedNote.text.trim()
-              ? 'Ready to check this seller note.'
+              ? 'Ready to check this invoice.'
               : 'There is no seller note text to check.',
           );
           button.disabled = preparedNote.text.trim().length === 0;
