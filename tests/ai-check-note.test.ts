@@ -145,7 +145,7 @@ describe('checkNote', () => {
     await expect(checkNote(note)).rejects.toThrow('Invalid AI response');
   });
 
-  it('rejects another category while this version is urgency-only', async () => {
+  it('rejects a category outside the two enabled checks', async () => {
     mocks.generateText.mockResolvedValue({
       output: {
         ...assessment,
@@ -153,7 +153,7 @@ describe('checkNote', () => {
       },
     });
     await expect(checkNote(note)).rejects.toThrow(
-      'AI response exceeded the urgency-only scope',
+      'AI response exceeded the supported check scope',
     );
   });
 
@@ -165,7 +165,7 @@ describe('checkNote', () => {
       },
     });
     await expect(checkNote(note)).rejects.toThrow(
-      'AI response exceeded the urgency-only scope',
+      'AI response exceeded the supported check scope',
     );
   });
 
@@ -195,4 +195,66 @@ describe('checkNote', () => {
     mocks.generateText.mockRejectedValue(new Error('Provider unavailable'));
     await expect(checkNote(note)).rejects.toThrow('Provider unavailable');
   });
+});
+
+it.each([false, true])(
+  'accepts a sensitive-information finding with urgency=%s',
+  async (withUrgency) => {
+    const input =
+      'Reply with your recovery code now or we will lock your account.';
+    const output = {
+      ...assessment,
+      findings: [
+        {
+          category: 'sensitive_information_request',
+          evidence: 'Reply with your recovery code',
+          explanation: 'Asks for an account recovery secret.',
+        },
+        ...(withUrgency
+          ? [
+              {
+                category: 'urgency',
+                evidence: 'now or we will lock your account.',
+                explanation:
+                  'Threatens a consequence to pressure immediate action.',
+              },
+            ]
+          : []),
+      ],
+    };
+    mocks.generateText.mockResolvedValue({ output });
+    await expect(checkNote(input)).resolves.toEqual(output);
+  },
+);
+
+it('rejects duplicate sensitive-information findings', async () => {
+  const finding = {
+    category: 'sensitive_information_request',
+    evidence: 'Send your password.',
+    explanation: 'Requests a password.',
+  };
+  mocks.generateText.mockResolvedValue({
+    output: { ...assessment, findings: [finding, finding] },
+  });
+  await expect(checkNote('Send your password.')).rejects.toThrow(
+    'AI response exceeded the supported check scope',
+  );
+});
+
+it('rejects invented evidence for the new category', async () => {
+  mocks.generateText.mockResolvedValue({
+    output: {
+      ...assessment,
+      findings: [
+        {
+          category: 'sensitive_information_request',
+          evidence: 'Send your password.',
+          explanation: 'Requests a password.',
+        },
+      ],
+    },
+  });
+  await expect(checkNote('Send your invoice reference.')).rejects.toThrow(
+    'AI evidence was not found in the submitted note',
+  );
 });

@@ -17,7 +17,7 @@ and safe new-tab navigation. Add `*.test.ts` or `*.test.tsx` files for new featu
 
 ## AI analysis
 
-The first AI check covers urgency and coercive threats in redacted seller notes.
+AI checks cover urgency/coercive threats and requests to disclose authentication or payment-card secrets in redacted seller notes. Sensitive-information rules and examples live in `lib/ai-sensitive-information.ts`; the main prompt combines both checks in one request.
 The prompt lives in `lib/ai-system-prompt.ts`; the server-side Gemini request and
 evidence checks live in `lib/ai-checkNote.ts`.
 
@@ -32,8 +32,7 @@ to `POST /api/ai-query` and returns `{ status: "received", analysis: ... }`.
 The separate AI endpoint accepts `{ "version": 1, "sellerNote": "redacted note" }`
 and returns the validated assessment. Invalid input returns HTTP 400; unavailable
 analysis returns HTTP 503; a malformed response from the AI endpoint returns HTTP 502. The background script passes the assessment back to the content script,
-which currently logs completion status and the number of findings. A user-facing
-alert is not implemented yet.
+which displays the summary, evidence, and explanations in an on-page panel. Contact safety advice appears only for analysed notes with no findings and detected contact details.
 
 Tests mock model responses and make no paid AI calls. Prompt examples demonstrate
 the expected format; they do not establish detector accuracy. Evaluate the model

@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         'GOOGLE_GENERATIVE_AI_MODEL is not configured',
         'Invalid note for AI analysis',
         'Invalid AI response',
-        'AI response exceeded the urgency-only scope',
+        'AI response exceeded the supported check scope',
         'AI evidence was not found in the submitted note',
       ]);
       const knownMessage =

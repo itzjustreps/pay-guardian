@@ -37,14 +37,18 @@ export async function checkNote(note: string): Promise<AiResponse> {
   const validation = aiResponseSchema.safeParse(result.output);
   if (!validation.success) throw new Error('Invalid AI response');
   const assessment = validation.data;
-  console.log('THIS IS AI OUTPUT:', result.output.findings);
 
-  // The schema supports future categories; this prompt currently checks urgency only.
+  // Accept only the two enabled checks, with one finding per category.
+  const categories = assessment.findings.map((finding) => finding.category);
   if (
-    assessment.findings.length > 1 ||
-    assessment.findings.some((finding) => finding.category !== 'urgency')
+    categories.length > 2 ||
+    new Set(categories).size !== categories.length ||
+    categories.some(
+      (category) =>
+        category !== 'urgency' && category !== 'sensitive_information_request',
+    )
   ) {
-    throw new Error('AI response exceeded the urgency-only scope');
+    throw new Error('AI response exceeded the supported check scope');
   }
   if (
     assessment.findings.some(

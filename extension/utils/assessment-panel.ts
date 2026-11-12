@@ -107,7 +107,7 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
   const heading = textElement('h2', 'Pay Guardian');
   const scope = textElement(
     'p',
-    'Detects suspicious messages and social engineering tactics hidden in PayPal invoices',
+    'Checks seller notes for coercive urgency and requests for sensitive information.',
   );
   scope.className = 'scope';
   const results = document.createElement('div');
@@ -140,7 +140,7 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
           ? 'Not enough context'
           : assessment.findings.length > 0
             ? 'Warning signs found'
-            : 'No urgency warning signs found';
+            : 'No warning signs found in these checks';
       const resultHeading = textElement('h3', title);
       resultHeading.className = 'result-heading';
       results.replaceChildren(
@@ -150,7 +150,14 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
       for (const finding of assessment.findings) {
         const item = document.createElement('article');
         item.append(
-          textElement('h3', finding.category.replaceAll('_', ' ')),
+          textElement(
+            'h3',
+            finding.category === 'sensitive_information_request'
+              ? 'Sensitive information requested'
+              : finding.category === 'urgency'
+                ? 'Urgency and pressure'
+                : finding.category.replaceAll('_', ' '),
+          ),
           textElement('strong', 'Evidence from the redacted note'),
           textElement('blockquote', finding.evidence),
           textElement('strong', 'Why it was flagged'),
@@ -169,7 +176,7 @@ export function createAssessmentPanel(button: HTMLButtonElement) {
           textElement('h3', 'Before contacting the sender'),
           textElement(
             'p',
-            'Contact details were detected, but their owner has not been verified. No urgency detected does not mean the contact is trustworthy.',
+            'Contact details were detected, but their owner has not been verified. No warning signs detected does not mean the contact is trustworthy.',
           ),
         );
         const advice = document.createElement('ul');
